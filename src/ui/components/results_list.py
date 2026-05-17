@@ -113,6 +113,7 @@ class ResultsList(ft.Container):
     def __init__(self):
         self.results_list = ft.ListView(
             expand=True,
+            scroll=ft.ScrollMode.AUTO,
             spacing=0,
             padding=0,
             #auto_scroll=False,
@@ -122,7 +123,6 @@ class ResultsList(ft.Container):
             expand=True,
             border=ft.Border.all(1),
             content=ft.Column(
-                expand=True,
                 spacing=0,
                 controls=[
                     ResultsHeader(),

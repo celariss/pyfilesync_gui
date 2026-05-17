@@ -62,6 +62,11 @@ class AppController:
             self.config.pairs.pop(pair_index)
             self.ui.set_config_data(self.config)
 
+    async def remove_recent_file(self, path:str):
+        if path in self.recent_files:
+            self.recent_files.remove(path)
+            self._save_app_settings()
+            self.ui.refresh()
 
     async def run_compare(self, pair_index:int=None):
         self.ui.clear_results()
