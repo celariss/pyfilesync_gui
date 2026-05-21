@@ -82,6 +82,7 @@ class FolderPairs:
                     icon=ft.Icons.PLAY_ARROW,
                     tooltip="Lancer la synchronisation",
                     on_click=run_sync,
+                    visible=False,
                 ),
                 ft.IconButton(
                     icon=ft.Icons.SETTINGS,

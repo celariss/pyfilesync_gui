@@ -1,3 +1,5 @@
+APP_VERSION = "0.1.0"
+
 import sys
 
 import flet as ft
@@ -9,7 +11,7 @@ from ui.views.settings_view import SettingsView
 
 async def main(page: ft.Page):
     controller:AppController = AppController()
-    mainview:ft.View = MainView(controller)
+    mainview:ft.View = MainView(controller, APP_VERSION)
     controller.set_ui(mainview)
 
      # Navigation arrière (bouton back Android/web)
@@ -41,7 +43,8 @@ async def main(page: ft.Page):
 
     page.on_view_pop = view_pop
     page.on_route_change = route_change
-    page.theme_mode = ft.ThemeMode.DARK
+    page.theme_mode = ft.ThemeMode.LIGHT
+    #page.theme = ft.Theme(color_scheme_seed=ft.Colors.RED_100,)
     # Route initiale
     route_change()
 

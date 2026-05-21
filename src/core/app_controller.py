@@ -24,7 +24,7 @@ class AppController:
     async def new_project(self):
         self.config = SyncConfig()
         self.config_path = ''
-        self.ui.clear_results()
+        self.ui.clear_cmp_results()
         self.ui.set_config_data(self.config)
         self.ui.refresh()
 
@@ -36,18 +36,20 @@ class AppController:
             self._save_app_settings()
             self.ui.refresh()
 
-    async def load_config_file(self, path:str):
+    async def load_config_file(self, path:str) ->list[str]:
         config = SyncConfig()
-        error = config.load_file(path)
-        if error:
-            self.ui.show_error("Please fix error in config file : "+error)
+        errors = config.load_file(path)
+        if errors:
+            return errors
         self.config = config
         self.config_path = path
         self.recent_files.add(path)
         self._save_app_settings()
         self.ui.refresh()
         self.ui.set_config_data(self.config)
-        self.ui.clear_results()
+        self.ui.clear_cmp_results()
+        self.ui.clear_cmp_errors()
+        return []
 
     async def change_pair(self, pair_index:int,pair:PairSection):
         self.config.pairs[pair_index] = pair
@@ -69,18 +71,54 @@ class AppController:
             self.ui.refresh()
 
     async def run_compare(self, pair_index:int=None):
-        self.ui.clear_results()
+        self.ui.clear_cmp_results()
+        self.ui.clear_cmp_errors()
+        self.ui.clear_sync_results()
+        self.ui.on_start_compare()
+        
         for idx, pair in enumerate(self.config.pairs):
             if pair_index is None or idx == pair_index:
                 cmpdata:CmpData = DirSyncer.compare_dirs(pair.left, pair.right, include=pair.include_patterns, exclude=pair.exclude_patterns,
                                                 compare_file_content=pair.cmp_files_content, ignore_right_only=False,
-                                                on_warning=self.on_warning)
-                self._add_results(cmpdata, pair, idx)
+                                                on_warning=self._on_cmp_warning)
+                if cmpdata.errors:
+                    for error in cmpdata.errors:
+                        self.ui.append_warning(error[0], error[1], False)
+                else:
+                    self._add_cmp_results(cmpdata, pair, idx)
 
-    async def run_sync(self, pair_index:int=None):
+    async def run_sync_items(self, items:list[ResultItem]):
+        def on_warning(path:str, warning:str):
+            self.ui.append_warning(warning, path, True)
+
+        self.ui.clear_cmp_errors()
+        self.ui.clear_sync_results()
+        self.ui.on_start_sync()
+
+        cmpdatas:dict[CmpData] = dict()
+        for item in items:
+            if not item.pair_index in cmpdatas:
+                cmpdatas[item.pair_index] = CmpData()
+            cmpdata = cmpdatas[item.pair_index]
+            if not item.left_dir:
+                cmpdata.right_only_files.add(item.right_file)
+            elif not item.right_dir:
+                cmpdata.left_only_files.add(item.left_file)
+            else:
+                cmpdata.different_files.add(item.left_file)
+        for pair_index in cmpdatas:
+            pair = self.config.pairs[pair_index]
+            syncdata = DirSyncer.sync_dirs(pair.left, pair.right, cmpdatas[pair_index], history_mode_depth=pair.history_mode_depth, 
+                                            history_mode_file_max_saved_size=pair.history_mode_file_max_saved_size, 
+                                            on_sync_file=self.ui.append_sync_result, on_warning=on_warning)
+
+    async def run_sync_pair(self, pair_index:int=None):
         for idx, pair in enumerate(self.config.pairs):
             if pair_index is None or idx == pair_index:
-                pass
+                cmpdata:CmpData = DirSyncer.compare_dirs(pair.left, pair.right, include=pair.include_patterns, exclude=pair.exclude_patterns,
+                                            compare_file_content=pair.cmp_files_content, ignore_right_only=False,
+                                            on_warning=self._on_cmp_warning)
+        # TBD
 
     def _save_app_settings(self):
         pathname = os.path.join(os.path.dirname(sys.argv[0]), "parameters.json")
@@ -105,16 +143,16 @@ class AppController:
                 self.recent_files = set(result.get("recent_files", []))
 
     
-    def _add_results(self, cmpdata:CmpData, pair:PairSection, pair_index:int):
+    def _add_cmp_results(self, cmpdata:CmpData, pair:PairSection, pair_index:int):
         for item in cmpdata.left_only_files.union(cmpdata.left_only_empty_dirs):
-            self._add_result(pair.left, item, '', '', pair_index=pair_index)
+            self._add_cmp_result(pair.left, item, '', '', pair_index=pair_index)
         for item in cmpdata.right_only_files.union(cmpdata.right_only_dirs):
-            self._add_result('', '', pair.right, item, pair_index=pair_index)
+            self._add_cmp_result('', '', pair.right, item, pair_index=pair_index)
         for item in cmpdata.different_files:
-            self._add_result(pair.left, item, pair.right, item, pair_index=pair_index)
+            self._add_cmp_result(pair.left, item, pair.right, item, pair_index=pair_index)
         self.ui.refresh_results()
 
-    def _add_result(self, left_dir, left_file, right_dir, right_file, pair_index:int):
+    def _add_cmp_result(self, left_dir, left_file, right_dir, right_file, pair_index:int):
         result_item = ResultItem(
             status=CmpStatus.LEFT_ONLY if right_dir == '' else (CmpStatus.RIGHT_ONLY if left_dir == '' else CmpStatus.DIFFERENT),
             left_dir=left_dir,
@@ -124,9 +162,9 @@ class AppController:
             pair_index=pair_index
         )
         #print(f"Appended result: '{left}' | '{right}'")
-        self.ui.append_result(result_item)
+        self.ui.append_cmp_result(result_item)
 
-    def on_warning(self, message):
-        print("Warning:", message)
+    def _on_cmp_warning(self, message):
+        self.ui.append_warning(message, '', True)
 
    

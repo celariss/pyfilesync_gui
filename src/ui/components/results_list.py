@@ -1,9 +1,11 @@
 from enum import Enum
+from functools import partial
 import os
 
 import flet as ft
 
 from ui.ui_interface import CmpStatus, ResultItem
+from ui.common_ui import *
 
 COLUMN_LAYOUT = {
     "left_dir": 2,
@@ -23,7 +25,7 @@ class CMP_STATUS_ICONS:
 class ResultsHeader(ft.Container):
     def __init__(self):
         super().__init__(
-            bgcolor=ft.Colors.BLUE_GREY_900,
+            bgcolor=HEADER_BG_COLOR,
             padding=8,
             content=ft.Row(
                 spacing=0,
@@ -46,12 +48,13 @@ class ResultsHeader(ft.Container):
                 text,
                 weight=ft.FontWeight.BOLD,
                 size=14,
+                color=HEADER_TEXT_COLOR,
             )
         )
 
 
 class ResultRow(ft.Container):
-    def __init__(self, item):
+    def __init__(self, item:ResultItem):
         if item.status == CmpStatus.LEFT_ONLY:
             status_icon = CMP_STATUS_ICONS.LEFT_ONLY
         elif item.status == CmpStatus.RIGHT_ONLY:
@@ -67,11 +70,12 @@ class ResultRow(ft.Container):
             ),
             padding=5,
             content=ft.Row(
+                data=item,
                 spacing=0,
                 controls=[
                     self.text_cell(item.left_dir, COLUMN_LAYOUT["left_dir"], tooltip=item.left_dir),
                     self.text_cell('.' + os.path.sep + item.left_file if item.left_file else '', COLUMN_LAYOUT["left_path"], tooltip=os.path.join(item.left_dir,item.left_file)),
-                    self.checkbox_cell(item.include, COLUMN_LAYOUT["include"]),
+                    self.checkbox_cell(item.include, COLUMN_LAYOUT["include"], item),
                     self.icon_cell(status_icon, COLUMN_LAYOUT["status"]),
                     self.text_cell(item.right_dir, COLUMN_LAYOUT["right_dir"], tooltip=item.right_dir),
                     self.text_cell('.' + os.path.sep + item.right_file if item.right_file else '', COLUMN_LAYOUT["right_path"], tooltip=os.path.join(item.right_dir,item.right_file)),
@@ -92,12 +96,17 @@ class ResultRow(ft.Container):
             )
         )
 
-    def checkbox_cell(self, value, expand):
+    def checkbox_cell(self, value, expand, item):
+        async def on_change(item:ResultItem, e):
+            item.include = e.data
+            
         return ft.Container(
             expand=expand,
             alignment=ft.Alignment.CENTER,
             content=ft.Checkbox(
-                value=value
+                value=value,
+                data=item,
+                on_change=partial(on_change, item)
             )
         )
 

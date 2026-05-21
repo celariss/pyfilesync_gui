@@ -20,7 +20,7 @@ class ResultItem:
         """
         self.left_dir = left_dir
         self.left_file = left_file
-        self.include = True
+        self.include:bool = True
         self.status:CmpStatus = status
         self.right_dir = right_dir
         self.right_file = right_file
@@ -36,11 +36,29 @@ class UIInterface:
     def set_config_data(self, config:SyncConfig):
         pass
 
-    def clear_results(self):
+    def clear_cmp_results(self):
+        pass
+
+    def clear_cmp_errors(self):
+        pass
+
+    def clear_sync_results(self):
         pass
 
     def refresh_results(self):
         pass
 
-    def append_result(self, item: ResultItem):
+    def on_start_compare(self):
+        pass
+
+    def on_start_sync(self):
+        pass
+
+    def append_cmp_result(self, item: ResultItem):
+        pass
+
+    def append_warning(self, text:str, target:str, is_warning:bool):
+        pass
+
+    def append_sync_result(self, action:str, filepath:str, leftdir:str, rightdir:str):
         pass
