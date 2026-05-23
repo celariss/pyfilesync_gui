@@ -92,6 +92,7 @@ class AppController:
             self.ui.append_warning(warning, path, True)
 
         self.ui.clear_cmp_errors()
+        self.ui.clear_cmp_results()
         self.ui.clear_sync_results()
         self.ui.on_start_sync()
 

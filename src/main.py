@@ -1,7 +1,5 @@
 APP_VERSION = "0.1.0"
 
-import sys
-
 import flet as ft
 import re
 from core.app_controller import AppController
@@ -44,7 +42,7 @@ async def main(page: ft.Page):
     page.on_view_pop = view_pop
     page.on_route_change = route_change
     page.theme_mode = ft.ThemeMode.LIGHT
-    #page.theme = ft.Theme(color_scheme_seed=ft.Colors.RED_100,)
+    page.theme = ft.Theme(color_scheme_seed=ft.Colors.BLUE_ACCENT,)
     # Route initiale
     route_change()
 

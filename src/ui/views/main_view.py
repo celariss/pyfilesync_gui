@@ -3,10 +3,11 @@ from functools import partial
 import flet as ft
 
 from ui.components.folder_pairs import FolderPairs
+from ui.components.listviewex import *
 from ui.components.results_list import ResultsList
 from core.app_controller import AppController
 from ui.ui_interface import *
-from ui.common_ui import *
+from ui.ui_common import *
 
 
 class MainView(ft.View, UIInterface):
@@ -14,7 +15,7 @@ class MainView(ft.View, UIInterface):
     def __init__(self, controller:AppController, app_version:str):
         self.app_version = app_version
         self.controller:AppController = controller
-        self.resultslist:ResultsList = ResultsList()
+        self.cmp_results_list:ResultsList = ResultsList()
         self.folderpairs:FolderPairs = FolderPairs(self.controller)
         self.load_popupmenu:ft.SubmenuButton = None
         self.main_toolbar:ft.AppBar = self._build_main_toolbar()
@@ -91,11 +92,12 @@ class MainView(ft.View, UIInterface):
         self.folderpairs.set_config(config)
 
     def clear_cmp_results(self):
-        self.resultslist.clear()
+        self.cmp_results_list.clear()
+        self.cmp_results_list.update()
         self.run_sync_btn.disabled = True
 
     def clear_sync_results(self):
-        self.sync_results_list.controls.clear()
+        self.sync_results_list.clear()
         self.sync_results_list.update()
 
     def clear_cmp_errors(self):
@@ -105,7 +107,7 @@ class MainView(ft.View, UIInterface):
         self._expand_panel(self.errors_panel, False)
 
     def refresh_results(self):
-        self.resultslist.refresh()
+        self.cmp_results_list.update()
     
     def on_start_compare(self):
         self._expand_panel(self.errors_panel, False)
@@ -118,7 +120,7 @@ class MainView(ft.View, UIInterface):
         self._expand_panel(self.sync_panel, True)
 
     def append_cmp_result(self, item: ResultItem):
-        self.resultslist.append_result(item)
+        self.cmp_results_list.append_result(item)
         self.run_sync_btn.disabled = False
         self.run_sync_btn.update()
 
@@ -187,36 +189,34 @@ class MainView(ft.View, UIInterface):
             right = rightdir
         else:
             weight = ft.FontWeight.NORMAL
-            filepath = '  | .'+os.path.sep+filepath
+            filepath = '.'+os.path.sep+filepath
             if action == 'delete':
-                display_action = "  | Suppression de"
+                display_action = "Suppression de"
                 right = filepath
             elif action == 'copy':
-                display_action = "  | Copie de"
+                display_action = "Copie de"
                 left = filepath
                 right = filepath
             elif action == 'update':
-                display_action = "  | Mise à jour de"
+                display_action = "Mise à jour de"
                 left = filepath
                 right = filepath
 
         if display_action:
-            self.sync_results_list.controls.append(
-                ft.Row(
-                    alignment=ft.Alignment.CENTER,
-                    controls=[
-                        ft.Text(value=display_action, weight=weight, expand=3),
-                        ft.Text(value=left, weight=weight, expand=5),
-                        ft.Text(value=right, weight=weight, expand=5),
-                    ]
-                )
+            self.sync_results_list.append_row(
+                [
+                    (display_action, display_action),
+                    (f'  | {left}', left),
+                    (f'  | {right}', right),
+                ],
+                weight=weight,
             )
             self.sync_results_list.update()
     #ENDOF Implementation of UIInterface methods#
 
     async def sync_from_results_list(self):
         items:list[ResultItem] = []
-        for row in self.resultslist.results_list.controls:
+        for row in self.cmp_results_list.listview.controls:
             if row.content.data.include:
                 items.append(row.content.data)
         if items:
@@ -450,7 +450,7 @@ class MainView(ft.View, UIInterface):
                         alignment=ft.MainAxisAlignment.CENTER,
                         controls=[self.run_sync_btn]
                     ),
-                    self.resultslist,
+                    self.cmp_results_list,
                 ]
             ),
             height=400,
@@ -458,9 +458,14 @@ class MainView(ft.View, UIInterface):
         return self.compare_panel
     
     def _build_sync_log_panel(self):
-        self.sync_results_list:ft.ListView = ft.ListView(
-            expand=True,
-            scroll=ft.ScrollMode.AUTO,
+        self.sync_results_list:ListViewEx = ListViewEx(
+            [
+                Column("action", ColumnType.TEXT, "Action", 3),
+                Column("left", ColumnType.TEXT, "Chemin gauche", 6),
+                Column("right", ColumnType.TEXT, "Chemin droit", 6),
+            ],
+            header_bgcolor=HEADER_BG_COLOR,
+            header_text_color=HEADER_TEXT_COLOR,
         )
 
         self.sync_panel:ft.ExpansionPanel =  self._build_panel(
