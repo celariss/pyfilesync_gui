@@ -7,7 +7,7 @@ class CmpStatus(Enum):
     RIGHT_ONLY = 2
     DIFFERENT = 3
     
-class ResultItem:
+class CmpResultItem:
     def __init__(self, status:CmpStatus, left_dir, left_file, right_dir, right_file, pair_index:int):
         """Represents a single result item in the comparison results.
         Args:
@@ -54,7 +54,7 @@ class UIInterface:
     def on_start_sync(self):
         pass
 
-    def append_cmp_result(self, item: ResultItem):
+    def append_cmp_result(self, item: CmpResultItem):
         pass
 
     def append_warning(self, text:str, target:str, is_warning:bool):

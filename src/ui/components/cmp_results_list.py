@@ -1,7 +1,7 @@
 import os
 import flet as ft
 
-from ui.ui_interface import CmpStatus, ResultItem
+from ui.ui_interface import CmpStatus, CmpResultItem
 from ui.ui_common import *
 from ui.views.main_view import *
 
@@ -11,7 +11,7 @@ class CMP_STATUS_ICONS:
     RIGHT_ONLY = ft.Icons.CANCEL
     DIFFERENT = ft.Icons.KEYBOARD_DOUBLE_ARROW_RIGHT_OUTLINED
 
-class ResultsList(ListViewEx):
+class CmpResultsList(ListViewEx):
     def __init__(self):
         super().__init__(
             [
@@ -27,11 +27,11 @@ class ResultsList(ListViewEx):
             on_change=self._on_change
         )
       
-    def append_result(self, item: ResultItem):
+    def append_result(self, item: CmpResultItem):
         row = self._create_row(item)
         self.append_row(row, data=item)
 
-    def _create_row(self, item:ResultItem):
+    def _create_row(self, item:CmpResultItem):
         if item.status == CmpStatus.LEFT_ONLY:
             status_icon = CMP_STATUS_ICONS.LEFT_ONLY
         elif item.status == CmpStatus.RIGHT_ONLY:
@@ -51,5 +51,5 @@ class ResultsList(ListViewEx):
         ]
     
     def _on_change(self, column_id, e):
-        item:ResultItem = e.control.data
+        item:CmpResultItem = e.control.data
         item.include = e.data

@@ -42,7 +42,12 @@ pip install flet
 ```
 
 ### 2) code configuration
-TBD
+Clone the `pyfilesync` project repository
+```sh
+git clone https://github.com/celariss/pyfilesync
+```
+And add the `pyfilesync` project code to `PYTHONPATH`
+
 
 ### 3) Running the app
 from the base folder of the repo, type :

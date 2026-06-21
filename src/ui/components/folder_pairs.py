@@ -5,6 +5,8 @@ import flet as ft
 from syncconfig import *
 from core.app_controller import AppController
 from ui.components.text_ctrl_field import TextCtrlField
+from ui.ui_common import *
+
 
 class FolderPairs:
     def __init__(self, controller:AppController):
@@ -33,9 +35,9 @@ class FolderPairs:
     def _folder_row(self, pair:PairSection, pair_index:int):
         async def change_path(e: ft.Event[ft.TextField]):
             if e.control.data == 'left':
-                pair.left = e.control.value
+                pair.left_raw = e.control.value
             else:
-                pair.right = e.control.value
+                pair.right_raw = e.control.value
             asyncio.create_task(self.controller.change_pair(pair_index, pair))
 
         async def change_name(e: ft.Event[ft.TextField]):
@@ -65,6 +67,7 @@ class FolderPairs:
                 value=pair.name,
                 expand=1,
                 on_blur=change_name,
+                color=NORMAL_TEXT_COLOR,
             ),
             regex="^[A-Za-z0-9_-]*$",
             error_message="pair names may only contain '-', '_' and alphanumeric characters"
@@ -89,9 +92,9 @@ class FolderPairs:
                     tooltip="Paramètres",
                     on_click=on_show_pair_settings,
                 ),
-                ft.Text("Nom :"),
+                ft.Text("Nom :", color=NORMAL_TEXT_COLOR),
                 name_field,
-                ft.Text("Dossier gauche :"),
+                ft.Text("Dossier gauche :", color=NORMAL_TEXT_COLOR),
                 ft.IconButton(
                     data='left',
                     icon=ft.Icons.FOLDER_OPEN,
@@ -100,11 +103,12 @@ class FolderPairs:
                 ),
                 ft.TextField(
                     data='left',
-                    value=pair.left,
+                    value=pair.left_raw,
                     expand=2,
-                    on_blur=change_path
+                    on_blur=change_path,
+                    color=NORMAL_TEXT_COLOR,
                 ),
-                ft.Text("Dossier droit :"),
+                ft.Text("Dossier droit :", color=NORMAL_TEXT_COLOR),
                 ft.IconButton(
                     data='right',
                     icon=ft.Icons.FOLDER_OPEN,
@@ -113,9 +117,10 @@ class FolderPairs:
                 ),
                 ft.TextField(
                     data='right',
-                    value=pair.right,
+                    value=pair.right_raw,
                     expand=2,
-                    on_blur=change_path
+                    on_blur=change_path,
+                    color=NORMAL_TEXT_COLOR,
                 ),
                 ft.IconButton(
                     icon=ft.Icons.DELETE, tooltip="Supprimer la ligne",
@@ -125,7 +130,7 @@ class FolderPairs:
         )
     
     async def _choose_path(self, e: ft.Event[ft.Button], side:str, pair:PairSection, pair_index:int):
-        init_dir = pair.left if side == 'left' else pair.right
+        init_dir = pair.left_p if side == 'left' else pair.right_p
         old_init_dir = None
         while not os.path.exists(init_dir) and init_dir != '' and old_init_dir != init_dir:
             old_init_dir = init_dir
@@ -135,7 +140,7 @@ class FolderPairs:
         path = await ft.FilePicker().get_directory_path(initial_directory=init_dir)
         if path:
             if side == 'left':
-                pair.left = path
+                pair.left_raw = path
             else:
-                pair.right = path
+                pair.right_raw = path
             asyncio.create_task(self.controller.change_pair(pair_index, pair))

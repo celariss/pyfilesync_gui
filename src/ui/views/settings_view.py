@@ -2,6 +2,10 @@ import flet as ft
 
 from core.app_controller import AppController
 from ui.components.text_ctrl_field import TextCtrlField
+from ui.ui_common import *
+
+from helpers import value_with_unit_to_int
+
 
 class SettingsView(ft.View):
     def __init__(self, controller:AppController, pair_index=None):
@@ -34,19 +38,21 @@ class SettingsView(ft.View):
                                          self._build_boolean_field("Comparer le contenu des fichiers", "cmp_files_content"),
                                     ]),
                                     self._build_section("Filtres", [
-                                        self._build_text_field("Patterns à inclure", "include"),
-                                        self._build_text_field("Patterns à exclure", "exclude"),
-                                        self._build_text_field("Expressions régulières à inclure", "include_regex"),
-                                        self._build_text_field("Expressions régulières à exclure", "exclude_regex"),
+                                        self._build_text_field("Patterns à inclure", "include_raw"),
+                                        self._build_text_field("Patterns à exclure", "exclude_raw"),
+                                        self._build_text_field("Expressions régulières à inclure", "include_regex_raw"),
+                                        self._build_text_field("Expressions régulières à exclure", "exclude_regex_raw"),
                                     ]),
                                     self._build_section("Sauvegarde automatique (historique) des fichiers", [
                                         self._build_boolean_field("Activer la sauvegarde auto",
-                                                                  value=getattr(self.config_target, "history_mode_depth")>0,
+                                                                  value=getattr(self.config_target, "history_mode_depth_raw")>0,
                                                                   on_change=self._on_change_history_mode,
                                                                   ref=self.history_mode_enabled
                                         ),
-                                        self._build_positive_int_field("Profondeur maximale", "history_mode_depth", ref=self.history_mode_depth_ref),
-                                        self._build_positive_int_field("Taille maximale de l'historique d'un fichier", "history_mode_file_max_saved_size", ref=self.history_mode_file_max_saved_size_ref),
+                                        self._build_positive_int_field("Profondeur maximale", "history_mode_depth_raw", ref=self.history_mode_depth_ref),
+                                        self._build_text_field("Taille maximale de l'historique d'un fichier", "history_mode_file_max_saved_size_raw",
+                                                               on_validate_entry=self._validate_file_max_saved_size, cast_entry=self._on_cast_file_max_saved_size,
+                                                               ref=self.history_mode_file_max_saved_size_ref),
                                     ]),
                                 ]
                             )
@@ -55,11 +61,11 @@ class SettingsView(ft.View):
                 )
             ]
         )
-        self._on_change_history_mode(getattr(self.config_target, "history_mode_depth")>0)
+        self._on_change_history_mode(getattr(self.config_target, "history_mode_depth_raw")>0)
 
     def on_view_hidden(self):
         if not self.history_mode_enabled.current.value:
-            setattr(self.config_target, "history_mode_depth", 0)
+            setattr(self.config_target, "history_mode_depth_raw", 0)
 
     def _on_change_history_mode(self, value:bool):
         if value:
@@ -82,7 +88,7 @@ class SettingsView(ft.View):
             ]
         )
     
-    def _build_text_field(self, label, field_name, regex=None, error_msg=None, ref=None):
+    def _build_text_field(self, label, field_name, regex=None, error_msg=None, ref=None, on_validate_entry:callable=None, cast_entry:callable=None):
         init_value=getattr(self.config_target, field_name)
         multiline = isinstance(init_value, list)
         if multiline:
@@ -90,7 +96,9 @@ class SettingsView(ft.View):
         
         async def on_blur(e: ft.Event[ft.TextField]):
             if name_field.valid_input:
-                if isinstance(init_value,int):
+                if cast_entry:
+                    value = cast_entry(e.control.value)
+                elif isinstance(init_value,int):
                     value = int(e.control.value)
                 else:
                     value = e.control.value
@@ -105,10 +113,12 @@ class SettingsView(ft.View):
                 value=str(init_value),
                 on_blur=on_blur,
                 multiline=multiline,
-                expand=True
+                expand=True,
+                color=NORMAL_TEXT_COLOR,
             ),
             regex=regex,
-            error_message=error_msg
+            error_message=error_msg,
+            on_validate_entry=on_validate_entry,
         )
 
         return ft.Row(
@@ -154,11 +164,28 @@ class SettingsView(ft.View):
             value=init_value,
             ref=ref,
             on_change=on_change_,
-            label_position=ft.LabelPosition.LEFT
+            label_position=ft.LabelPosition.LEFT,
+            label_style=ft.TextStyle(color=NORMAL_TEXT_COLOR),
         )
 
     def _build_main_toolbar(self, title):
         return ft.AppBar(
-            title=ft.Text(title),
-            bgcolor=ft.Colors.SURFACE_CONTAINER_HIGHEST,
+            bgcolor=ft.Colors.PRIMARY_CONTAINER,
+            color=ft.Colors.ON_PRIMARY_CONTAINER,
+            title=ft.Text(title, weight=ft.FontWeight.BOLD),
         )
+    
+    def _validate_file_max_saved_size(self, value:str) -> str|None:
+        if isinstance(value, str):
+            if -1 == value_with_unit_to_int(value, -1):
+                return "un entier positif éventuellement suivi d'une unité (ex: 10MB, 500KB) est attendu"
+        elif not value.isdigit() or int(value)<0:
+            return "un entier positif est attendu"
+        return None
+    
+    def _on_cast_file_max_saved_size(self, value:str) -> any:
+       # Try to convert
+        try:
+            return int(value)
+        except ValueError:
+            return value

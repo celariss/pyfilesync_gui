@@ -25,6 +25,7 @@ class AppController:
         self.config = SyncConfig()
         self.config_path = ''
         self.ui.clear_cmp_results()
+        self.ui.clear_cmp_errors()
         self.ui.set_config_data(self.config)
         self.ui.refresh()
 
@@ -35,11 +36,15 @@ class AppController:
             self.recent_files.add(path)
             self._save_app_settings()
             self.ui.refresh()
+        else:
+            self.ui.show_error(error)
 
     async def load_config_file(self, path:str) ->list[str]:
         config = SyncConfig()
+        self.ui.clear_cmp_errors()
         errors = config.load_file(path)
         if errors:
+            self.ui.show_error("; ".join(errors))
             return errors
         self.config = config
         self.config_path = path
@@ -48,12 +53,15 @@ class AppController:
         self.ui.refresh()
         self.ui.set_config_data(self.config)
         self.ui.clear_cmp_results()
-        self.ui.clear_cmp_errors()
         return []
 
     async def change_pair(self, pair_index:int,pair:PairSection):
         self.config.pairs[pair_index] = pair
-        self.ui.set_config_data(self.config)
+        errors = self.config.on_raw_data_changed()
+        if errors:
+            self.ui.show_error("; ".join(errors))
+        else:
+            self.ui.set_config_data(self.config)
 
     async def add_folders_pair(self):
         self.config.pairs.append(PairSection())
@@ -75,19 +83,25 @@ class AppController:
         self.ui.clear_cmp_errors()
         self.ui.clear_sync_results()
         self.ui.on_start_compare()
+
+        # updating values in config file in case raw values have been changed
+        self.config.on_raw_data_changed()
         
         for idx, pair in enumerate(self.config.pairs):
             if pair_index is None or idx == pair_index:
-                cmpdata:CmpData = DirSyncer.compare_dirs(pair.left, pair.right, include=pair.include_patterns, exclude=pair.exclude_patterns,
-                                                compare_file_content=pair.cmp_files_content, ignore_right_only=False,
-                                                on_warning=self._on_cmp_warning)
-                if cmpdata.errors:
-                    for error in cmpdata.errors:
-                        self.ui.append_warning(error[0], error[1], False)
-                else:
-                    self._add_cmp_results(cmpdata, pair, idx)
+                try:
+                    cmpdata:CmpData = DirSyncer.compare_dirs(pair.left_p, pair.right_p, include=pair.include_patterns_p, exclude=pair.exclude_patterns_p,
+                                                    compare_file_content=pair.cmp_files_content, ignore_right_only=False,
+                                                    on_warning=self._on_cmp_warning)
+                    if cmpdata.errors:
+                        for error in cmpdata.errors:
+                            self.ui.append_warning(error[0], error[1], False)
+                    else:
+                        self._add_cmp_results(cmpdata, pair, idx)
+                except Exception as exc:
+                    self.ui.append_warning(str(exc), pair.name, False)
 
-    async def run_sync_items(self, items:list[ResultItem]):
+    async def run_sync_items(self, items:list[CmpResultItem]):
         def on_warning(path:str, warning:str):
             self.ui.append_warning(warning, path, True)
 
@@ -95,6 +109,9 @@ class AppController:
         self.ui.clear_cmp_results()
         self.ui.clear_sync_results()
         self.ui.on_start_sync()
+
+        # updating values in config file in case raw values have been changed
+        self.config.on_raw_data_changed()
 
         cmpdatas:dict[CmpData] = dict()
         for item in items:
@@ -109,14 +126,17 @@ class AppController:
                 cmpdata.different_files.add(item.left_file)
         for pair_index in cmpdatas:
             pair = self.config.pairs[pair_index]
-            syncdata = DirSyncer.sync_dirs(pair.left, pair.right, cmpdatas[pair_index], history_mode_depth=pair.history_mode_depth, 
-                                            history_mode_file_max_saved_size=pair.history_mode_file_max_saved_size, 
-                                            on_sync_file=self.ui.append_sync_result, on_warning=on_warning)
+            try:
+                syncdata = DirSyncer.sync_dirs(pair.left_p, pair.right_p, cmpdatas[pair_index], history_mode_depth=pair.history_mode_depth_p, 
+                                                history_mode_file_max_saved_size=pair.history_mode_file_max_saved_size_p, 
+                                                on_sync_file=self.ui.append_sync_result, on_warning=on_warning)
+            except Exception as exc:
+                self.ui.append_warning(str(exc), pair.name, False)
 
     async def run_sync_pair(self, pair_index:int=None):
         for idx, pair in enumerate(self.config.pairs):
             if pair_index is None or idx == pair_index:
-                cmpdata:CmpData = DirSyncer.compare_dirs(pair.left, pair.right, include=pair.include_patterns, exclude=pair.exclude_patterns,
+                cmpdata:CmpData = DirSyncer.compare_dirs(pair.left_p, pair.right_p, include=pair.include_patterns_p, exclude=pair.exclude_patterns_p,
                                             compare_file_content=pair.cmp_files_content, ignore_right_only=False,
                                             on_warning=self._on_cmp_warning)
         # TBD
@@ -146,15 +166,15 @@ class AppController:
     
     def _add_cmp_results(self, cmpdata:CmpData, pair:PairSection, pair_index:int):
         for item in cmpdata.left_only_files.union(cmpdata.left_only_empty_dirs):
-            self._add_cmp_result(pair.left, item, '', '', pair_index=pair_index)
+            self._add_cmp_result(pair.left_p, item, '', '', pair_index=pair_index)
         for item in cmpdata.right_only_files.union(cmpdata.right_only_dirs):
-            self._add_cmp_result('', '', pair.right, item, pair_index=pair_index)
+            self._add_cmp_result('', '', pair.right_p, item, pair_index=pair_index)
         for item in cmpdata.different_files:
-            self._add_cmp_result(pair.left, item, pair.right, item, pair_index=pair_index)
+            self._add_cmp_result(pair.left_p, item, pair.right_p, item, pair_index=pair_index)
         self.ui.refresh_results()
 
     def _add_cmp_result(self, left_dir, left_file, right_dir, right_file, pair_index:int):
-        result_item = ResultItem(
+        result_item = CmpResultItem(
             status=CmpStatus.LEFT_ONLY if right_dir == '' else (CmpStatus.RIGHT_ONLY if left_dir == '' else CmpStatus.DIFFERENT),
             left_dir=left_dir,
             left_file=left_file,

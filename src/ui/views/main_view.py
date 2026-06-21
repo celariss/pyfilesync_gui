@@ -4,7 +4,7 @@ import flet as ft
 
 from ui.components.folder_pairs import FolderPairs
 from ui.components.listviewex import *
-from ui.components.results_list import ResultsList
+from ui.components.cmp_results_list import CmpResultsList
 from core.app_controller import AppController
 from ui.ui_interface import *
 from ui.ui_common import *
@@ -15,7 +15,7 @@ class MainView(ft.View, UIInterface):
     def __init__(self, controller:AppController, app_version:str):
         self.app_version = app_version
         self.controller:AppController = controller
-        self.cmp_results_list:ResultsList = ResultsList()
+        self.cmp_results_list:CmpResultsList = CmpResultsList()
         self.folderpairs:FolderPairs = FolderPairs(self.controller)
         self.load_popupmenu:ft.SubmenuButton = None
         self.main_toolbar:ft.AppBar = self._build_main_toolbar()
@@ -119,7 +119,7 @@ class MainView(ft.View, UIInterface):
         self._expand_panel(self.compare_panel, False)
         self._expand_panel(self.sync_panel, True)
 
-    def append_cmp_result(self, item: ResultItem):
+    def append_cmp_result(self, item: CmpResultItem):
         self.cmp_results_list.append_result(item)
         self.run_sync_btn.disabled = False
         self.run_sync_btn.update()
@@ -162,8 +162,8 @@ class MainView(ft.View, UIInterface):
                 ]
             )
         )
+        self.errors_list.update()
         self._expand_panel(self.errors_panel, True)
-        self.errors_panel.update()
         self._update_warning_title()
 
     def append_sync_result(self, action:str, filepath:str, leftdir:str, rightdir:str):
@@ -215,7 +215,7 @@ class MainView(ft.View, UIInterface):
     #ENDOF Implementation of UIInterface methods#
 
     async def sync_from_results_list(self):
-        items:list[ResultItem] = []
+        items:list[CmpResultItem] = []
         for row in self.cmp_results_list.listview.controls:
             if row.content.data.include:
                 items.append(row.content.data)
@@ -228,6 +228,7 @@ class MainView(ft.View, UIInterface):
             self.errors_title.color = ft.Colors.RED
         else:
             self.errors_title.color = PANEL_TEXT_COLOR
+        self.errors_title.update()
         self.errors_panel.update()
 
     def _expand_panel(self, panel:ft.ExpansionPanel, expanded:bool):
@@ -330,10 +331,10 @@ class MainView(ft.View, UIInterface):
         else:
             asyncio.create_task(self.controller.save_config_file(config_path))
 
-    async def _run_compare(self):
+    async def _run_compare(self, e: ft.Event[ft.Button]):
         self._expand_panel(self.compare_panel, True)
         self._expand_panel(self.sync_panel, False)
-        await self.controller.run_compare()
+        asyncio.create_task(self.controller.run_compare())
     
     def _build_project_toolbar(self):
         return ft.Container(
@@ -344,7 +345,7 @@ class MainView(ft.View, UIInterface):
                         icon=ft.Icon(ft.Icons.SYNC_LOCK),
                         icon_color=ICON_COLOR,
                         tooltip="Lancer la comparaison (projet entier)",
-                        on_click=lambda _:  asyncio.create_task(self._run_compare())
+                        on_click=self._run_compare
                     ),
                     ft.IconButton(
                         icon=ft.Icon(ft.Icons.PLAY_ARROW),
