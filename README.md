@@ -2,7 +2,7 @@
 #### A graphic user interface for pyfilesync written in python and using [Flet] framework.
 
 <p align="middle">
-	<img src="assets/images/icon-default.png"/>
+	<img src="src/assets/icon.png"/>
 </p>
 
 This is a desktop GUI application that includes pyfilesync code in a stand alone binary.
